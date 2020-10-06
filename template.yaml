@@ -1,0 +1,150 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Test Sam Template for UCC Production with Prehooks
+Globals:
+  Function:
+    Runtime: python3.6
+    MemorySize: 128
+    Timeout: 90
+    AutoPublishAlias: prodlive
+  Api:
+    EndpointConfiguration: REGIONAL
+    Name: Slack-Api
+Resources:
+  ApiGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: UccBot_Apigateway_Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action: sts:AssumeRole
+          Principal:
+            Service: apigateway.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonApiGatewayPushToCloudWatchLogs
+  CodeDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: UccBot_CodeDeploy_Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action: sts:AssumeRole
+          Principal:
+            Service: codedeploy.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AWSCodeDeployFullAccess
+      - arn:aws:iam::aws:policy/AWSLambdaFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: UccBot_Lambda_Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action: sts:AssumeRole
+          Principal:
+            Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonSSMFullAccess
+      - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/AWSCodeDeployFullAccess
+  ApiAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+        - ApiGatewayRole
+        - Arn
+  APIGatewayEventLambdaFunction1:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: UccBot_Invoke_Slash_Cmd
+      Description: Provides the Menu to the user when user invokes the slash command
+      CodeUri: s3://demoucc/c1e668c0369473409416c2f9240b1eec
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Handler: lambda_function.lambda_handler
+      DeploymentPreference:
+        Type: Linear10PercentEvery10Minutes
+        Alarms:
+        - Ref: AliasErrorMetricGreaterThanZeroAlarm
+        Hooks:
+          PreTraffic:
+            Ref: preTrafficHookLambda
+        Role:
+          Fn::GetAtt:
+          - CodeDeployRole
+          - Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /uccbot-slash-cmd-methods
+            Method: POST
+            RestApiId:
+              Ref: API1
+  API1:
+    Type: AWS::Serverless::Api
+    Properties:
+      OpenApiVersion: '2.0'
+      StageName: UccBot-Prod
+  preTrafficHookLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: UccBot_Invoke_Slash_Cmd_test
+      Description: Run test case aginst UccBot_Invoke_Slash_Cmd
+      CodeUri: s3://demoucc/9650a695812de6de12abab852cd8fafd
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Handler: lambda_function.lambda_handler
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - codedeploy:PutLifecycleEventHookExecutionStatus
+          Resource: '*'
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - lambda:InvokeFunction
+          Resource: '*'
+      DeploymentPreference:
+        Enabled: false
+      Environment:
+        Variables:
+          NewVersion:
+            Ref: APIGatewayEventLambdaFunction1.Version
+  AliasErrorMetricGreaterThanZeroAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName:
+        Fn::Sub: ${APIGatewayEventLambdaFunction1}-Lambda-Error-Count
+      AlarmDescription: Lambda Function Error > 0 first One
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: Resource
+        Value:
+          Fn::Sub: ${APIGatewayEventLambdaFunction1}:live
+      - Name: FunctionName
+        Value:
+          Ref: APIGatewayEventLambdaFunction1
+      EvaluationPeriods: 2
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 60
+      Statistic: Sum
+      Threshold: 0
+      TreatMissingData: notBreaching
