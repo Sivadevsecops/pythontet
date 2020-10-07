@@ -67,7 +67,6 @@ Resources:
     Properties:
       FunctionName: UccBot_Invoke_Slash_Cmd
       Description: Provides the Menu to the user when user invokes the slash command
-      CodeUri: s3://demoucc/c1e668c0369473409416c2f9240b1eec
       Role:
         Fn::GetAtt:
         - LambdaRole
@@ -102,7 +101,6 @@ Resources:
     Properties:
       FunctionName: UccBot_Invoke_Slash_Cmd_test
       Description: Run test case aginst UccBot_Invoke_Slash_Cmd
-      CodeUri: s3://demoucc/9650a695812de6de12abab852cd8fafd
       Role:
         Fn::GetAtt:
         - LambdaRole
