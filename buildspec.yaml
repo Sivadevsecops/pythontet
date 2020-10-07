@@ -1,0 +1,10 @@
+version: 0.2
+phases:
+  install:
+     commands:
+         - sam package --region us-east-1 --template-file template.yaml --s3-bucket pdpmalaths-lambda-pipeline1 --output-template-file packaged.yaml
+         - sam deploy --region us-east-1 --template-file packaged.yaml --stack-name mySafeDeployStack1 --capabilities CAPABILITY_IAM
+artifacts:
+   type: zip
+   files:
+     - packaged.yaml
