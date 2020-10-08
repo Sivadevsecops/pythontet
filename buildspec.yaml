@@ -3,7 +3,7 @@ phases:
   install:
      commands:
          - sam package --region us-east-1 --template-file template.yaml --s3-bucket pdpmalaths-lambda-pipeline1 --output-template-file packaged.yaml
-         - sam deploy --region us-east-1 --template-file packaged.yaml --stack-name mySafeDeployStack1 --capabilities CAPABILITY_IAM
+         - sam deploy --region us-east-1 --template-file packaged.yaml --stack-name mySafeDeployStack1 --capabilities CAPABILITY_IAM --role-arn arn:aws:iam::026268330808:role/cloudformationservicerole123
 artifacts:
    type: zip
    files:
