@@ -6,6 +6,7 @@ def lambda_handler(event, context):
     print ("testing change deployment")
     print("step 3")
     print("New Code Deployment done")
+    print("Dummy"
     print("step 4")
     print("Demo for Siva")
     return {
